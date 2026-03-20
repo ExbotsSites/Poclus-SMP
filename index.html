@@ -1,274 +1,688 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poclus SMP Store</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+:root{--bg:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--surface:#141414;--border:#2a2a2a;--text:#f0f0f0;--text2:#888;--text3:#555;--accent:#e8c96e;--accent2:#c4a040;--green:#4ade80;--red:#f87171;--glow:rgba(232,201,110,0.15);--shadow:0 4px 40px rgba(0,0,0,0.6)}
+[data-theme="light"]{--bg:#f5f3ee;--bg2:#ece9e2;--bg3:#e0dcd2;--surface:#fff;--border:#d0ccc0;--text:#1a1a1a;--text2:#666;--text3:#999;--accent:#b8860b;--accent2:#8b6508;--glow:rgba(184,134,11,0.1);--shadow:0 4px 40px rgba(0,0,0,0.12)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 31px,var(--border) 32px),repeating-linear-gradient(90deg,transparent,transparent 31px,var(--border) 32px);background-size:32px 32px;opacity:.2;pointer-events:none;z-index:0}
+header{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.9);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);padding:0 2rem;height:64px;display:flex;align-items:center;justify-content:space-between;transition:background .3s}
+[data-theme="light"] header{background:rgba(245,243,238,.93)}
+.logo{font-family:'Cinzel',serif;font-weight:900;font-size:1.3rem;letter-spacing:.08em;color:var(--accent);display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none}
+.logo span{color:var(--text);font-weight:400}
+.logo-icon{width:30px;height:30px;background:var(--accent);display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border-radius:4px;padding:3px;flex-shrink:0}
+.logo-cell{background:var(--bg);border-radius:1px}
+.logo-cell.on{background:rgba(0,0,0,.5)}
+.header-right{display:flex;align-items:center;gap:.6rem}
+.settings-wrap{position:relative}
+.settings-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);width:38px;height:38px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:1.1rem}
+.settings-btn:hover,.settings-btn.open{border-color:var(--accent);color:var(--accent);background:var(--glow)}
+.dd{position:absolute;top:calc(100% + 10px);right:0;width:280px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.55);padding:1.1rem;z-index:200;transform-origin:top right;transform:scale(.92) translateY(-8px);opacity:0;pointer-events:none;transition:all .22s cubic-bezier(.4,0,.2,1)}
+.dd.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.dd-title{font-family:'Cinzel',serif;font-size:.75rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:.8rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+.dd-group{margin-bottom:.9rem}
+.dd-label{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.38rem}
+.dd-opts{display:flex;gap:.38rem;flex-wrap:wrap}
+.dd-opt{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'Rajdhani',sans-serif;font-size:.78rem;font-weight:600;padding:.28rem .65rem;border-radius:6px;cursor:pointer;transition:all .15s;flex:1;text-align:center}
+.dd-opt:hover{border-color:var(--accent);color:var(--text)}
+.dd-opt.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.dd-hr{height:1px;background:var(--border);margin:.7rem 0}
+.cart-btn{background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.06em;padding:.4rem 1rem;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:.5rem;transition:all .2s}
+.cart-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.cart-count{background:#000;color:var(--accent);font-size:.7rem;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.cart-count.bump{transform:scale(1.5)}
+.hero{position:relative;z-index:1;width:100%;height:clamp(260px,42vw,520px);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hero-bg{position:absolute;inset:0;background:linear-gradient(180deg,#081530 0%,#102550 28%,#1e4018 54%,#2d6028 60%,#4a3010 66%,#2e1c08 100%)}
+.hero-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 25% 35%,rgba(255,210,90,.16) 0%,transparent 55%)}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.42) saturate(.75)}
+.hero-fade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.04) 0%,rgba(0,0,0,.08) 45%,rgba(10,10,10,.88) 100%)}
+[data-theme="light"] .hero-fade{background:linear-gradient(to bottom,rgba(0,0,0,.04) 0%,rgba(0,0,0,.1) 45%,rgba(245,243,238,.85) 100%)}
+.hero-content{position:relative;z-index:2;text-align:center;padding:0 2rem}
+.hero-eye{font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);margin-bottom:.7rem}
+.hero-content h1{font-family:'Cinzel',serif;font-size:clamp(2.1rem,6vw,5rem);font-weight:900;line-height:1.05;color:#fff;text-shadow:0 2px 30px rgba(0,0,0,.7);margin-bottom:.6rem}
+.hero-content h1 em{font-style:normal;color:var(--accent);text-shadow:0 0 45px rgba(232,201,110,.5)}
+.hero-content p{color:rgba(255,255,255,.72);font-size:.98rem;max-width:440px;margin:0 auto 1.5rem;line-height:1.6}
+.badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.14);border-radius:100px;padding:.4rem 1.1rem;font-size:.76rem;color:rgba(255,255,255,.74);backdrop-filter:blur(8px)}
+.dot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+.section{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:2.5rem 2rem 4rem}
+.sec-hdr{display:flex;align-items:baseline;gap:1rem;margin-bottom:2rem}
+.sec-title{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;letter-spacing:.05em}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+.tabs{display:flex;gap:.45rem;margin-bottom:2rem;flex-wrap:wrap}
+.tab{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.06em;padding:.36rem 1rem;border-radius:6px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.tab:hover{border-color:var(--accent);color:var(--text)}
+.tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:1.35rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);transition:transform .25s,border-color .25s,box-shadow .25s;animation:fadeUp .4s ease both}
+.card:hover{transform:translateY(-5px);border-color:var(--accent);box-shadow:0 10px 40px rgba(232,201,110,.1),var(--shadow)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.card-top{height:108px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;position:relative;overflow:hidden}
+.card-top::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,var(--surface))}
+.card-cbadge{position:absolute;top:9px;right:9px;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .48rem;border-radius:4px;z-index:1}
+.cb-best{background:var(--accent);color:#000}
+.cb-new{background:var(--green);color:#000}
+.cb-hot{background:var(--red);color:#fff}
+.card-body{padding:1.1rem;flex:1;display:flex;flex-direction:column}
+.card-rank{font-size:.66rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:.22rem}
+.card-name{font-family:'Cinzel',serif;font-size:1.12rem;font-weight:700;margin-bottom:.38rem}
+.card-desc{font-size:.84rem;color:var(--text2);line-height:1.5;margin-bottom:.8rem;flex:1}
+.card-perks{list-style:none;margin-bottom:1rem}
+.card-perks li{font-size:.79rem;color:var(--text2);padding:.17rem 0;display:flex;align-items:center;gap:.32rem}
+.card-perks li::before{content:'\25B8';color:var(--accent);font-size:.62rem;flex-shrink:0}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:.55rem;border-top:1px solid var(--border);padding-top:.85rem;margin-top:auto}
+.price-box{display:flex;flex-direction:column}
+.price-main{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:var(--accent);line-height:1}
+.price-old{font-size:.74rem;color:var(--text3);text-decoration:line-through}
+.price-per{font-size:.68rem;color:var(--text3);letter-spacing:.05em}
+.card-btns{display:flex;gap:.42rem}
+.btn-cart{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'Rajdhani',sans-serif;font-size:.77rem;font-weight:600;padding:.43rem .68rem;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-cart:hover{border-color:var(--accent);color:var(--accent)}
+.btn-buy{background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;padding:.43rem .95rem;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-buy:hover{background:var(--accent2);transform:translateY(-1px)}
+.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(4px)}
+.overlay-bg.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--bg2);border-left:1px solid var(--border);z-index:301;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.drawer.open{transform:translateX(0)}
+.drawer-hdr{padding:1.4rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.drawer-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:.05em}
+.btn-x{background:none;border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.btn-x:hover{border-color:var(--red);color:var(--red)}
+.drawer-items{flex:1;overflow-y:auto;padding:1rem}
+.drawer-items::-webkit-scrollbar{width:3px}
+.drawer-items::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.cart-item{display:flex;align-items:center;gap:.68rem;padding:.68rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.6rem;animation:fadeUp .22s ease both}
+.ci-icon{font-size:1.65rem;flex-shrink:0}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-price{font-size:.78rem;color:var(--accent);font-weight:600}
+.ci-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.9rem;padding:.2rem;border-radius:4px;transition:color .2s;flex-shrink:0}
+.ci-rm:hover{color:var(--red)}
+.empty-cart{text-align:center;padding:2.5rem 1rem;color:var(--text3);font-size:.86rem}
+.empty-icon{font-size:2.4rem;margin-bottom:.55rem}
+.drawer-foot{padding:1.1rem 1.2rem;border-top:1px solid var(--border)}
+.total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;font-size:.93rem;font-weight:600}
+.total-amt{font-family:'Cinzel',serif;font-size:1.3rem;color:var(--accent)}
+.field-grp{margin-bottom:.6rem}
+.field-lbl{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.25rem}
+.field-inp{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.87rem;padding:.56rem .82rem;border-radius:6px;outline:none;transition:border-color .2s}
+.field-inp::placeholder{color:var(--text3)}
+.field-inp:focus{border-color:var(--accent)}
+.btn-checkout{width:100%;background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.93rem;font-weight:700;letter-spacing:.08em;padding:.78rem;border-radius:8px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:.1rem}
+.btn-checkout:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px)}
+.btn-checkout:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.pay-icons{display:flex;align-items:center;justify-content:center;gap:.38rem;margin-top:.6rem}
+.pay-badge{background:var(--bg3);border:1px solid var(--border);padding:.1rem .42rem;border-radius:3px;font-size:.6rem;font-weight:700;color:var(--text2)}
+.cookie-bar{position:fixed;bottom:0;left:0;right:0;z-index:400;background:var(--bg2);border-top:1px solid var(--border);padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;transition:transform .4s}
+.cookie-bar.hidden{transform:translateY(110%)}
+.cookie-text{font-size:.8rem;color:var(--text2);line-height:1.5;flex:1;min-width:200px}
+.cookie-text a{color:var(--accent);text-decoration:none}
+.btn-cookie{background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.06em;padding:.42rem 1.2rem;border-radius:6px;cursor:pointer;white-space:nowrap}
+.btn-cookie:hover{background:var(--accent2)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(6px);padding:1rem}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border:1px solid var(--accent);border-radius:16px;padding:2.4rem;max-width:400px;width:100%;text-align:center;box-shadow:0 0 60px rgba(232,201,110,.2);transform:scale(.9);transition:transform .3s}
+.modal-bg.open .modal{transform:scale(1)}
+.modal-icon{font-size:3.2rem;margin-bottom:.75rem}
+.modal h2{font-family:'Cinzel',serif;font-size:1.3rem;margin-bottom:.38rem}
+.modal p{color:var(--text2);font-size:.86rem;line-height:1.6;margin-bottom:1.35rem}
+.btn-modal{background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:700;letter-spacing:.06em;padding:.58rem 2rem;border-radius:8px;cursor:pointer}
+.btn-modal:hover{background:var(--accent2)}
+.toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:600;display:flex;flex-direction:column;gap:.42rem}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);color:var(--text);font-size:.84rem;font-weight:500;padding:.68rem 1rem;border-radius:8px;box-shadow:var(--shadow);animation:tin .28s ease both,tout .28s ease 2.5s both;max-width:270px}
+.toast.err{border-left-color:var(--red)}
+.toast.ok{border-left-color:var(--green)}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes tout{from{opacity:1}to{opacity:0;transform:translateY(6px)}}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:1.6rem 2rem;text-align:center;color:var(--text3);font-size:.76rem;letter-spacing:.04em}
+footer a{color:var(--accent);text-decoration:none}
+.admin-modal{max-width:720px;padding:0;overflow:hidden}
+.admin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.admin-stat{background:var(--surface);padding:1.2rem;text-align:center}
+.admin-stat-val{font-family:'Cinzel',serif;font-size:1.8rem;font-weight:700;color:var(--accent)}
+.admin-stat-lbl{font-size:.72rem;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-top:.3rem}
+.admin-body{padding:1.2rem 1.5rem;max-height:400px;overflow-y:auto}
+.admin-section-title{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.6rem}
+@media(max-width:600px){header{padding:0 1rem}.section{padding:1.5rem 1rem 3rem}.cookie-bar{padding:.7rem 1rem}}
+</style>
+</head>
+<body>
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+<header>
+  <div class="logo" onclick="scrollTo({top:0,behavior:'smooth'})">
+    <div class="logo-icon">
+      <div class="logo-cell on"></div><div class="logo-cell"></div><div class="logo-cell on"></div><div class="logo-cell"></div>
+      <div class="logo-cell"></div><div class="logo-cell on"></div><div class="logo-cell"></div><div class="logo-cell on"></div>
+      <div class="logo-cell on"></div><div class="logo-cell"></div><div class="logo-cell on"></div><div class="logo-cell"></div>
+      <div class="logo-cell"></div><div class="logo-cell on"></div><div class="logo-cell"></div><div class="logo-cell on"></div>
+    </div>
+    POCLUS <span>SMP</span>
+  </div>
+  <div class="header-right">
+    <div class="settings-wrap" id="settingsWrap">
+      <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()" title="Settings">&#9881;</button>
+      <div class="dd" id="settingsDd">
+        <div class="dd-title">Settings</div>
+        <div class="dd-group">
+          <div class="dd-label">Language</div>
+          <div class="dd-opts">
+            <button class="dd-opt" data-k="lang" data-v="en" onclick="setSetting('lang','en',this)">EN</button>
+            <button class="dd-opt" data-k="lang" data-v="it" onclick="setSetting('lang','it',this)">IT</button>
+            <button class="dd-opt" data-k="lang" data-v="de" onclick="setSetting('lang','de',this)">DE</button>
+          </div>
+        </div>
+        <div class="dd-group">
+          <div class="dd-label">Currency</div>
+          <div class="dd-opts">
+            <button class="dd-opt" data-k="currency" data-v="eur" onclick="setSetting('currency','eur',this)">EUR</button>
+            <button class="dd-opt" data-k="currency" data-v="usd" onclick="setSetting('currency','usd',this)">USD</button>
+            <button class="dd-opt" data-k="currency" data-v="gbp" onclick="setSetting('currency','gbp',this)">GBP</button>
+          </div>
+        </div>
+        <div class="dd-hr"></div>
+        <div class="dd-group" style="margin-bottom:0">
+          <div class="dd-label">Theme</div>
+          <div class="dd-opts">
+            <button class="dd-opt" data-k="theme" data-v="dark" onclick="setSetting('theme','dark',this)">Dark</button>
+            <button class="dd-opt" data-k="theme" data-v="light" onclick="setSetting('theme','light',this)">Light</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="cart-btn" onclick="openCart()">&#128722; Cart <span class="cart-count" id="cartCount">0</span></button>
+  </div>
+</header>
 
-// ── CORS: allow your frontend ──
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-password']
-}));
-app.options('*', cors());
+<div class="hero">
+  <div class="hero-bg"></div>
+  <img class="hero-img" src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" alt="Poclus SMP" onerror="this.style.display='none'">
+  <div class="hero-fade"></div>
+  <div class="hero-content">
+    <p class="hero-eye">Minecraft Java Edition</p>
+    <h1>The <em>Poclus</em><br>Store</h1>
+    <p id="heroDesc">Upgrade your experience. Support the server. Get exclusive perks.</p>
+    <div class="badge"><span class="dot"></span><span>play.poclussmp.net</span></div>
+  </div>
+</div>
 
-// ── Stripe webhook needs raw body ──
-app.use('/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json());
+<div class="section">
+  <div class="sec-hdr">
+    <h2 class="sec-title" id="storeTitle">STORE</h2>
+    <div class="sec-line"></div>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" onclick="filterCat('all',this)">All</button>
+    <button class="tab" onclick="filterCat('rank',this)">Ranks</button>
+    <button class="tab" onclick="filterCat('cosmetic',this)">Cosmetics</button>
+    <button class="tab" onclick="filterCat('boost',this)">Boosters</button>
+    <button class="tab" onclick="filterCat('bundle',this)">Bundles</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
 
-// ══════════════════════════════════════
-//  MONGODB SCHEMAS
-// ══════════════════════════════════════
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB error:', err));
+<div class="overlay-bg" id="cartBg" onclick="closeCart()"></div>
+<div class="drawer" id="cartDrawer">
+  <div class="drawer-hdr">
+    <span class="drawer-title" id="cartTitle">Your Cart</span>
+    <button class="btn-x" onclick="closeCart()">&#10005;</button>
+  </div>
+  <div class="drawer-items" id="drawerItems"></div>
+  <div class="drawer-foot">
+    <div class="total-row">
+      <span id="totalLabel">Total</span>
+      <span class="total-amt" id="totalAmt">EUR 0.00</span>
+    </div>
+    <div class="field-grp">
+      <div class="field-lbl">Minecraft Username</div>
+      <input class="field-inp" id="unInput" type="text" placeholder="YourUsername">
+    </div>
+    <div class="field-grp">
+      <div class="field-lbl">Email (confirmation)</div>
+      <input class="field-inp" id="emailInput" type="email" placeholder="you@email.com">
+    </div>
+    <button class="btn-checkout" id="checkoutBtn" onclick="checkout()">Proceed to Checkout</button>
+    <div class="pay-icons">
+      <span class="pay-badge">VISA</span><span class="pay-badge">MC</span><span class="pay-badge">PAYPAL</span><span class="pay-badge">STRIPE</span>
+    </div>
+  </div>
+</div>
 
-const ProductSchema = new mongoose.Schema({
-  id:       { type: Number, required: true, unique: true },
-  cat:      { type: String, required: true },
-  icon:     { type: String, default: 'star' },
-  badge:    { type: String, default: null },
-  rank:     { type: String, required: true },
-  name:     { type: String, required: true },
-  desc:     { type: String, default: '' },
-  perks:    [String],
-  price:    { type: Number, required: true },
-  oldPrice: { type: Number, default: null },
-  period:   { type: String, default: 'one-time' },
-  banner:   { type: String, default: 'linear-gradient(135deg,#1a2a1a,#2a4a2a)' },
-  active:   { type: Boolean, default: true },
-}, { timestamps: true });
+<div class="modal-bg" id="successModal" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-icon">&#10003;</div>
+    <h2 id="modalTitle">Order Placed!</h2>
+    <p id="modalDesc">Purchase successful! Perks applied within minutes.</p>
+    <button class="btn-modal" onclick="closeModal()">Close</button>
+  </div>
+</div>
 
-const OrderSchema = new mongoose.Schema({
-  orderId:    { type: String, required: true, unique: true },
-  username:   { type: String, required: true },
-  email:      { type: String, default: '' },
-  items:      [String],
-  total:      { type: Number, required: true },
-  currency:   { type: String, default: 'eur' },
-  status:     { type: String, default: 'pending', enum: ['pending', 'paid', 'failed'] },
-  stripeSessionId: { type: String, default: null },
-}, { timestamps: true });
+<div class="modal-bg" id="adminLoginModal" onclick="closeAdminLogin()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:320px">
+    <div class="modal-icon">&#128274;</div>
+    <h2 style="margin-bottom:1rem">Admin Access</h2>
+    <input class="field-inp" id="adminPassInput" type="password" placeholder="Password..." style="margin-bottom:.6rem;text-align:center;letter-spacing:.2em" onkeydown="if(event.key==='Enter')checkAdminPass()">
+    <div id="adminPassErr" style="color:var(--red);font-size:.8rem;margin-bottom:.5rem;min-height:1rem"></div>
+    <button class="btn-modal" onclick="checkAdminPass()" style="width:100%">Enter</button>
+  </div>
+</div>
 
-const Product = mongoose.model('Product', ProductSchema);
-const Order   = mongoose.model('Order', OrderSchema);
+<div class="modal-bg" id="adminModal" onclick="event.stopPropagation()">
+  <div class="modal admin-modal" onclick="event.stopPropagation()">
+    <div class="drawer-hdr">
+      <span class="drawer-title" style="color:var(--accent)">&#9881; Admin Dashboard</span>
+      <button class="btn-x" onclick="document.getElementById('adminModal').classList.remove('open')">&#10005;</button>
+    </div>
+    <div class="admin-stats">
+      <div class="admin-stat"><div class="admin-stat-val" id="statRev">EUR 0</div><div class="admin-stat-lbl">Revenue</div></div>
+      <div class="admin-stat"><div class="admin-stat-val" style="color:var(--green)" id="statOrd">0</div><div class="admin-stat-lbl">Orders</div></div>
+      <div class="admin-stat"><div class="admin-stat-val" style="font-size:1.1rem" id="statTop">-</div><div class="admin-stat-lbl">Top Product</div></div>
+    </div>
+    <div class="admin-body">
+      <div class="admin-section-title">Orders</div>
+      <div id="adminOrders"></div>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="admin-section-title">Products</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <span style="font-size:.8rem;color:var(--text2)">Manage store products</span>
+          <button onclick="addProduct()" style="background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;padding:.25rem .7rem;border-radius:5px;cursor:pointer">+ Add</button>
+        </div>
+        <div id="adminProds"></div>
+      </div>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="admin-section-title">Test Email</div>
+        <div style="display:flex;gap:.5rem">
+          <input class="field-inp" id="testEmail" type="email" placeholder="test@email.com" style="flex:1">
+          <button onclick="sendTestEmail()" style="background:var(--accent);border:none;color:#000;font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;padding:.43rem 1rem;border-radius:6px;cursor:pointer">Send</button>
+        </div>
+      </div>
+      <div style="margin-top:.75rem;text-align:right">
+        <button onclick="clearOrders()" style="background:none;border:1px solid var(--red);color:var(--red);font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:600;padding:.3rem .8rem;border-radius:6px;cursor:pointer">Clear Orders</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-// ══════════════════════════════════════
-//  DEFAULT PRODUCTS (seeded on first run)
-// ══════════════════════════════════════
-const defaultProducts = [
-  { id:1, cat:'rank',    icon:'star',     badge:null,   rank:'Rank I',   name:'VIP',          desc:'Your first step into the Poclus elite.',                          perks:['[VIP] chat prefix','Colored chat','2 home sets','/fly in Lobby'],                        price:4.99,  oldPrice:null,  period:'one-time', banner:'linear-gradient(135deg,#1a2a1a,#2a4a2a)' },
-  { id:2, cat:'rank',    icon:'gem',      badge:'best', rank:'Rank II',  name:'VIP+',         desc:'The most popular tier. More homes, kit access, priority queue.',  perks:['[VIP+] gold prefix','5 home sets','Monthly kit','Priority queue','/nick'],             price:9.99,  oldPrice:12.99, period:'one-time', banner:'linear-gradient(135deg,#1a1a2a,#2a2a5a)' },
-  { id:3, cat:'rank',    icon:'crown',    badge:'hot',  rank:'Rank III', name:'ELITE',        desc:'Top-tier status. Command respect with exclusive perks.',           perks:['[ELITE] animated prefix','10 home sets','Weekly kit','Join full server','/hat'],        price:19.99, oldPrice:null,  period:'one-time', banner:'linear-gradient(135deg,#2a1a0a,#5a3a0a)' },
-  { id:4, cat:'rank',    icon:'trident',  badge:null,   rank:'Rank IV',  name:'LEGEND',       desc:'The pinnacle of Poclus. Reserved for true supporters.',           perks:['[LEGEND] rainbow prefix','Unlimited homes','Daily kit','Custom join message'],          price:34.99, oldPrice:44.99, period:'one-time', banner:'linear-gradient(135deg,#1f0a2a,#4a0a6a)' },
-  { id:5, cat:'cosmetic',icon:'sparkles', badge:'new',  rank:'Cosmetic', name:'Particle Trail',desc:'Leave a glowing trail wherever you walk.',                       perks:['5 particle styles','Toggle anytime','Visible to all'],                                  price:2.99,  oldPrice:null,  period:'one-time', banner:'linear-gradient(135deg,#0a1a2a,#0a2a3a)' },
-  { id:6, cat:'cosmetic',icon:'mask',     badge:null,   rank:'Cosmetic', name:'Chat Colors',  desc:'Unlock all 16 chat colors and gradient formatting.',              perks:['All color codes','Gradient support','Bold & italic'],                                    price:1.99,  oldPrice:null,  period:'one-time', banner:'linear-gradient(135deg,#1a0a1a,#2a1a2a)' },
-  { id:7, cat:'boost',   icon:'bolt',     badge:null,   rank:'Booster',  name:'XP Boost x2', desc:'Double your XP gain for 7 days.',                                 perks:['x2 XP for 7 days','All skills','Stackable with events'],                                price:3.99,  oldPrice:null,  period:'7 days',   banner:'linear-gradient(135deg,#1a1500,#2a2200)' },
-  { id:8, cat:'boost',   icon:'coin',     badge:null,   rank:'Booster',  name:'Coin Boost x3',desc:'Triple your coin earnings for 3 days.',                          perks:['x3 coins for 3 days','All sources','Great for grinding'],                               price:2.49,  oldPrice:null,  period:'3 days',   banner:'linear-gradient(135deg,#1a1000,#2a1800)' },
-  { id:9, cat:'bundle',  icon:'gift',     badge:'best', rank:'Bundle',   name:'Starter Pack', desc:'Best value: VIP rank + Particle Trail + 7-day XP Boost.',        perks:['VIP Rank','Particle Trail','7-day XP x2 Boost','Saves 35%'],                           price:11.99, oldPrice:18.97, period:'one-time', banner:'linear-gradient(135deg,#0a1f0a,#1a3f1a)' },
+<div class="cookie-bar" id="cookieBar">
+  <p class="cookie-text">&#127850; We use cookies to save your cart and preferences. <a href="#">Cookie Policy</a></p>
+  <button class="btn-cookie" onclick="acceptCookies()">Got it!</button>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<footer>
+  <p>&copy; 2025 <a href="#">Poclus SMP</a> &middot; Not affiliated with Mojang &middot; <a href="#">Terms</a> &middot; <a href="#">Refunds</a></p>
+  <p style="margin-top:.4rem"><a href="#" onclick="openAdminLogin();return false;" style="font-size:.7rem;color:var(--text3);opacity:.35">&#9881; Admin</a></p>
+</footer>
+
+<script>
+var API = 'https://poclus-backend.onrender.com';
+var EJSKEY = 'bZpe-yoHA1QHEjucc';
+var EJSSVC = 'service_h93gmsb';
+var EJSTPL = 'template_dtx4nol';
+
+emailjs.init(EJSKEY);
+
+// COOKIES
+function setCookie(n,v,d){var e=new Date(Date.now()+d*864e5).toUTCString();document.cookie=n+'='+encodeURIComponent(JSON.stringify(v))+';expires='+e+';path=/;SameSite=Lax'}
+function getCookie(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));if(!m)return null;try{return JSON.parse(decodeURIComponent(m[1]))}catch(e){return null}}
+function saveCart(){setCookie('poclus_cart',cart.map(function(i){return i.id}),30)}
+function saveSettings(){setCookie('poclus_settings',{theme:theme,lang:lang,currency:currency},365)}
+function acceptCookies(){setCookie('poclus_ok',true,365);document.getElementById('cookieBar').classList.add('hidden')}
+
+// STATE
+var S=getCookie('poclus_settings')||{};
+var theme=S.theme||'dark', lang=S.lang||'en', currency=S.currency||'eur';
+var cart=[], filter='all', adminPass='';
+document.documentElement.setAttribute('data-theme',theme);
+
+var CUR={eur:{sym:'EUR ',rate:1},usd:{sym:'USD ',rate:1.09},gbp:{sym:'GBP ',rate:0.85}};
+var ICONS={star:'&#11088;',gem:'&#128142;',crown:'&#128081;',trident:'&#128306;',sparkles:'&#10024;',mask:'&#127917;',bolt:'&#9889;',coin:'&#128176;',gift:'&#127873;'};
+
+var T={
+  en:{cartTitle:'Your Cart',totalLabel:'Total',checkoutBtn:'Proceed to Checkout',buy:'Buy Now',addCart:'+ Cart',empty:'Your cart is empty.',modalTitle:'Order Placed!',modalDesc:'Purchase successful! Perks applied within minutes.',toastAdded:'Added:',toastRemoved:'Removed.',cats:['All','Ranks','Cosmetics','Boosters','Bundles'],heroDesc:'Upgrade your experience. Support the server. Get exclusive perks.',storeTitle:'STORE'},
+  it:{cartTitle:'Il Tuo Carrello',totalLabel:'Totale',checkoutBtn:'Vai al Pagamento',buy:'Acquista',addCart:'+ Carrello',empty:'Il carrello e vuoto.',modalTitle:'Ordine Completato!',modalDesc:'Acquisto riuscito! Benefici applicati entro pochi minuti.',toastAdded:'Aggiunto:',toastRemoved:'Rimosso.',cats:['Tutti','Ranghi','Cosmetici','Boost','Bundle'],heroDesc:'Migliora la tua esperienza. Supporta il server.',storeTitle:'NEGOZIO'},
+  de:{cartTitle:'Dein Warenkorb',totalLabel:'Gesamt',checkoutBtn:'Zur Kasse',buy:'Kaufen',addCart:'+ Korb',empty:'Warenkorb ist leer.',modalTitle:'Bestellung aufgegeben!',modalDesc:'Kauf erfolgreich! Vorteile in wenigen Minuten.',toastAdded:'Hinzugefuegt:',toastRemoved:'Entfernt.',cats:['Alle','Raenge','Kosmetik','Booster','Pakete'],heroDesc:'Verbessere dein Erlebnis. Unterstuetze den Server.',storeTitle:'SHOP'}
+};
+
+// DEFAULT PRODUCTS (fallback if backend offline)
+var defaultProds=[
+  {id:1,cat:'rank',icon:'star',badge:null,rank:'Rank I',name:'VIP',desc:'Your first step into the Poclus elite.',perks:['[VIP] chat prefix','Colored chat','2 home sets','/fly in Lobby'],price:4.99,oldPrice:null,period:'one-time',banner:'linear-gradient(135deg,#1a2a1a,#2a4a2a)'},
+  {id:2,cat:'rank',icon:'gem',badge:'best',rank:'Rank II',name:'VIP+',desc:'The most popular tier. More homes, kit access, priority queue.',perks:['[VIP+] gold prefix','5 home sets','Monthly kit','Priority queue','/nick'],price:9.99,oldPrice:12.99,period:'one-time',banner:'linear-gradient(135deg,#1a1a2a,#2a2a5a)'},
+  {id:3,cat:'rank',icon:'crown',badge:'hot',rank:'Rank III',name:'ELITE',desc:'Top-tier status. Command respect with exclusive perks.',perks:['[ELITE] animated prefix','10 home sets','Weekly kit','Join full server','/hat'],price:19.99,oldPrice:null,period:'one-time',banner:'linear-gradient(135deg,#2a1a0a,#5a3a0a)'},
+  {id:4,cat:'rank',icon:'trident',badge:null,rank:'Rank IV',name:'LEGEND',desc:'The pinnacle of Poclus. Reserved for true supporters.',perks:['[LEGEND] rainbow prefix','Unlimited homes','Daily kit','Custom join message'],price:34.99,oldPrice:44.99,period:'one-time',banner:'linear-gradient(135deg,#1f0a2a,#4a0a6a)'},
+  {id:5,cat:'cosmetic',icon:'sparkles',badge:'new',rank:'Cosmetic',name:'Particle Trail',desc:'Leave a glowing trail wherever you walk.',perks:['5 particle styles','Toggle anytime','Visible to all'],price:2.99,oldPrice:null,period:'one-time',banner:'linear-gradient(135deg,#0a1a2a,#0a2a3a)'},
+  {id:6,cat:'cosmetic',icon:'mask',badge:null,rank:'Cosmetic',name:'Chat Colors',desc:'Unlock all 16 chat colors and gradient formatting.',perks:['All color codes','Gradient support','Bold & italic'],price:1.99,oldPrice:null,period:'one-time',banner:'linear-gradient(135deg,#1a0a1a,#2a1a2a)'},
+  {id:7,cat:'boost',icon:'bolt',badge:null,rank:'Booster',name:'XP Boost x2',desc:'Double your XP gain for 7 days.',perks:['x2 XP for 7 days','All skills','Stackable with events'],price:3.99,oldPrice:null,period:'7 days',banner:'linear-gradient(135deg,#1a1500,#2a2200)'},
+  {id:8,cat:'boost',icon:'coin',badge:null,rank:'Booster',name:'Coin Boost x3',desc:'Triple your coin earnings for 3 days.',perks:['x3 coins for 3 days','All sources','Great for grinding'],price:2.49,oldPrice:null,period:'3 days',banner:'linear-gradient(135deg,#1a1000,#2a1800)'},
+  {id:9,cat:'bundle',icon:'gift',badge:'best',rank:'Bundle',name:'Starter Pack',desc:'Best value: VIP + Particle Trail + 7-day XP Boost.',perks:['VIP Rank','Particle Trail','7-day XP x2 Boost','Saves 35%'],price:11.99,oldPrice:18.97,period:'one-time',banner:'linear-gradient(135deg,#0a1f0a,#1a3f1a)'}
 ];
+var products = defaultProds.slice();
 
-async function seedProducts() {
-  const count = await Product.countDocuments();
-  if (count === 0) {
-    await Product.insertMany(defaultProducts);
-    console.log('✅ Default products seeded');
-  }
+// Restore cart
+var savedIds=getCookie('poclus_cart')||[];
+cart=products.filter(function(p){return savedIds.indexOf(p.id)>-1});
+
+function fp(b){return CUR[currency].sym+(b*CUR[currency].rate).toFixed(2)}
+function gp(b){return(b*CUR[currency].rate).toFixed(2)}
+
+// Load products from backend
+function loadProducts(){
+  fetch(API+'/api/products')
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(data&&data.length){
+        products=data;
+        var ids=getCookie('poclus_cart')||[];
+        cart=products.filter(function(p){return ids.indexOf(p.id)>-1});
+        updateCount();
+        renderProducts();
+      }
+    })
+    .catch(function(){console.warn('Backend offline, using static products')});
 }
-seedProducts();
 
-// ══════════════════════════════════════
-//  MIDDLEWARE: Admin auth
-// ══════════════════════════════════════
-function requireAdmin(req, res, next) {
-  const pass = req.headers['x-admin-password'];
-  if (pass !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
+function renderProducts(){
+  var g=document.getElementById('grid');
+  var list=filter==='all'?products:products.filter(function(p){return p.cat===filter});
+  g.innerHTML='';
+  list.forEach(function(p,i){
+    var bHTML=p.badge?'<span class="card-cbadge cb-'+p.badge+'">'+p.badge.toUpperCase()+'</span>':'';
+    var oHTML=p.oldPrice?'<span class="price-old">'+fp(p.oldPrice)+'</span>':'';
+    var icon=ICONS[p.icon]||'&#11088;';
+    var d=document.createElement('div');
+    d.className='card';
+    d.style.animationDelay=(i*.055)+'s';
+    d.innerHTML='<div class="card-top" style="background:'+p.banner+'">'+bHTML+'<span style="position:relative;z-index:1">'+icon+'</span></div>'
+      +'<div class="card-body">'
+      +'<div class="card-rank">'+p.rank+'</div>'
+      +'<div class="card-name">'+p.name+'</div>'
+      +'<div class="card-desc">'+p.desc+'</div>'
+      +'<ul class="card-perks">'+(p.perks||[]).map(function(k){return'<li>'+k+'</li>'}).join('')+'</ul>'
+      +'<div class="card-foot">'
+      +'<div class="price-box">'+oHTML+'<span class="price-main">'+fp(p.price)+'</span><span class="price-per">'+p.period+'</span></div>'
+      +'<div class="card-btns">'
+      +'<button class="btn-cart" onclick="addToCart('+p.id+')">'+T[lang].addCart+'</button>'
+      +'<button class="btn-buy" onclick="buyNow('+p.id+')">'+T[lang].buy+'</button>'
+      +'</div></div></div>';
+    g.appendChild(d);
+  });
 }
 
-// ══════════════════════════════════════
-//  ROUTES: PRODUCTS
-// ══════════════════════════════════════
+function renderCart(){
+  var el=document.getElementById('drawerItems');
+  var total=cart.reduce(function(s,i){return s+parseFloat(gp(i.price))},0);
+  document.getElementById('totalAmt').textContent=CUR[currency].sym+total.toFixed(2);
+  if(!cart.length){el.innerHTML='<div class="empty-cart"><div class="empty-icon">&#128722;</div>'+T[lang].empty+'</div>';return}
+  el.innerHTML=cart.map(function(p){
+    return'<div class="cart-item">'
+      +'<span class="ci-icon">'+(ICONS[p.icon]||'&#11088;')+'</span>'
+      +'<div class="ci-info"><div class="ci-name">'+p.name+'</div><div class="ci-price">'+fp(p.price)+'</div></div>'
+      +'<button class="ci-rm" onclick="removeFromCart('+p.id+')">&#10005;</button>'
+      +'</div>';
+  }).join('');
+}
 
-// GET all active products
-app.get('/api/products', async (req, res) => {
-  try {
-    const products = await Product.find({ active: true }).sort({ id: 1 });
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+function addToCart(id){
+  var p=null;
+  for(var i=0;i<products.length;i++){if(products[i].id===id){p=products[i];break}}
+  if(!p)return;
+  for(var j=0;j<cart.length;j++){if(cart[j].id===id){toast(p.name+' already in cart');return}}
+  cart.push(p);saveCart();updateCount();renderCart();
+  toast(T[lang].toastAdded+' '+p.name,'ok');
+}
+function removeFromCart(id){
+  cart=cart.filter(function(x){return x.id!==id});
+  saveCart();updateCount();renderCart();
+  toast(T[lang].toastRemoved);
+}
+function buyNow(id){addToCart(id);openCart()}
+function updateCount(){
+  var el=document.getElementById('cartCount');
+  el.textContent=cart.length;
+  el.classList.add('bump');
+  setTimeout(function(){el.classList.remove('bump')},300);
+}
+function openCart(){
+  document.getElementById('cartBg').classList.add('open');
+  document.getElementById('cartDrawer').classList.add('open');
+  renderCart();updateLabels();
+}
+function closeCart(){
+  document.getElementById('cartBg').classList.remove('open');
+  document.getElementById('cartDrawer').classList.remove('open');
+}
 
-// GET all products (admin, includes inactive)
-app.get('/api/admin/products', requireAdmin, async (req, res) => {
-  try {
-    const products = await Product.find().sort({ id: 1 });
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+function checkout(){
+  var un=document.getElementById('unInput').value.trim();
+  var email=document.getElementById('emailInput').value.trim();
+  if(!un){document.getElementById('unInput').focus();toast('Enter your Minecraft username!','err');return}
+  if(!cart.length)return;
+  var btn=document.getElementById('checkoutBtn');
+  btn.textContent='Redirecting...';btn.disabled=true;
 
-// POST create product (admin)
-app.post('/api/admin/products', requireAdmin, async (req, res) => {
-  try {
-    const last = await Product.findOne().sort({ id: -1 });
-    const newId = last ? last.id + 1 : 1;
-    const product = new Product({ ...req.body, id: newId });
-    await product.save();
-    res.status(201).json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// PUT update product (admin)
-app.put('/api/admin/products/:id', requireAdmin, async (req, res) => {
-  try {
-    const product = await Product.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// DELETE product (admin, soft delete)
-app.delete('/api/admin/products/:id', requireAdmin, async (req, res) => {
-  try {
-    const product = await Product.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      { active: false },
-      { new: true }
-    );
-    if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ══════════════════════════════════════
-//  ROUTES: STRIPE CHECKOUT
-// ══════════════════════════════════════
-
-// POST create Stripe checkout session
-app.post('/api/checkout', async (req, res) => {
-  try {
-    const { cartIds, username, email, currency } = req.body;
-    if (!cartIds || !cartIds.length || !username) {
-      return res.status(400).json({ error: 'Missing required fields' });
+  fetch(API+'/api/checkout',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cartIds:cart.map(function(p){return p.id}),username:un,email:email,currency:currency})
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(data.url){
+      window.location.href=data.url;
+    } else {
+      toast('Error: '+(data.error||'Unknown'),'err');
+      btn.textContent=T[lang].checkoutBtn;btn.disabled=false;
     }
+  })
+  .catch(function(){
+    toast('Cannot connect to payment server','err');
+    btn.textContent=T[lang].checkoutBtn;btn.disabled=false;
+  });
+}
 
-    const cur = (currency || 'eur').toLowerCase();
-    const products = await Product.find({ id: { $in: cartIds }, active: true });
-    if (!products.length) return res.status(400).json({ error: 'No valid products' });
+function closeModal(){document.getElementById('successModal').classList.remove('open')}
 
-    const orderId = 'ORD-' + Date.now();
+function filterCat(cat,btn){
+  filter=cat;
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  renderProducts();
+}
 
-    const line_items = products.map(p => ({
-      price_data: {
-        currency: cur,
-        product_data: {
-          name: p.name,
-          description: p.desc,
-          metadata: { rank: p.rank, period: p.period },
-        },
-        unit_amount: Math.round(p.price * 100), // Stripe uses cents
-      },
-      quantity: 1,
-    }));
+function toggleSettings(){
+  var dd=document.getElementById('settingsDd');
+  var btn=document.getElementById('settingsBtn');
+  var open=dd.classList.toggle('open');
+  btn.classList.toggle('open',open);
+}
+document.addEventListener('click',function(e){
+  if(!document.getElementById('settingsWrap').contains(e.target)){
+    document.getElementById('settingsDd').classList.remove('open');
+    document.getElementById('settingsBtn').classList.remove('open');
+  }
+});
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'paypal'],
-      line_items,
-      mode: 'payment',
-      customer_email: email || undefined,
-      metadata: {
-        orderId,
-        username,
-        cartIds: cartIds.join(','),
-      },
-      success_url: `${process.env.FRONTEND_URL}?order=success&id=${orderId}`,
-      cancel_url:  `${process.env.FRONTEND_URL}?order=cancelled`,
+function setSetting(k,v,btn){
+  document.querySelectorAll('.dd-opt[data-k="'+k+'"]').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(k==='theme'){theme=v;document.documentElement.setAttribute('data-theme',v)}
+  else if(k==='lang'){lang=v;document.documentElement.lang=v;updateLabels();renderProducts();renderCart()}
+  else if(k==='currency'){currency=v;renderProducts();renderCart()}
+  saveSettings();
+}
+
+function syncUI(){
+  [['theme',theme],['lang',lang],['currency',currency]].forEach(function(pair){
+    document.querySelectorAll('.dd-opt[data-k="'+pair[0]+'"]').forEach(function(b){
+      b.classList.toggle('active',b.dataset.v===pair[1]);
     });
+  });
+}
 
-    // Save pending order
-    await Order.create({
-      orderId,
-      username,
-      email: email || '',
-      items: products.map(p => p.name),
-      total: products.reduce((s, p) => s + p.price, 0),
-      currency: cur,
-      status: 'pending',
-      stripeSessionId: session.id,
+function updateLabels(){
+  var t=T[lang];
+  document.getElementById('heroDesc').textContent=t.heroDesc;
+  document.getElementById('storeTitle').textContent=t.storeTitle;
+  document.getElementById('cartTitle').textContent=t.cartTitle;
+  document.getElementById('totalLabel').textContent=t.totalLabel;
+  document.getElementById('checkoutBtn').textContent=t.checkoutBtn;
+  document.querySelectorAll('.tab').forEach(function(tab,i){tab.textContent=t.cats[i]});
+}
+
+function toast(msg,type){
+  var el=document.createElement('div');
+  el.className='toast'+(type?' '+type:'');
+  el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(function(){el.remove()},3200);
+}
+
+// ADMIN
+function openAdminLogin(){
+  document.getElementById('adminPassInput').value='';
+  document.getElementById('adminPassErr').textContent='';
+  document.getElementById('adminLoginModal').classList.add('open');
+  setTimeout(function(){document.getElementById('adminPassInput').focus()},200);
+}
+function closeAdminLogin(){document.getElementById('adminLoginModal').classList.remove('open')}
+function checkAdminPass(){
+  var v=document.getElementById('adminPassInput').value;
+  fetch(API+'/api/admin/orders',{headers:{'x-admin-password':v}})
+    .then(function(r){
+      if(r.ok){adminPass=v;closeAdminLogin();openAdminDashboard()}
+      else{document.getElementById('adminPassErr').textContent='Wrong password!';document.getElementById('adminPassInput').value=''}
+    })
+    .catch(function(){document.getElementById('adminPassErr').textContent='Cannot reach server!'});
+}
+function openAdminDashboard(){
+  loadAdminData();
+  document.getElementById('adminModal').classList.add('open');
+}
+function loadAdminData(){
+  fetch(API+'/api/admin/orders',{headers:{'x-admin-password':adminPass}})
+    .then(function(r){return r.json()})
+    .then(function(orders){
+      var rev=orders.reduce(function(s,o){return s+parseFloat(o.total||0)},0);
+      var topMap={};
+      orders.forEach(function(o){(o.items||[]).forEach(function(n){topMap[n]=(topMap[n]||0)+1})});
+      var top=Object.keys(topMap).sort(function(a,b){return topMap[b]-topMap[a]})[0]||'-';
+      document.getElementById('statRev').textContent=CUR[currency].sym+rev.toFixed(2);
+      document.getElementById('statOrd').textContent=orders.length;
+      document.getElementById('statTop').textContent=top.length>10?top.substr(0,9)+'...':top;
+      var box=document.getElementById('adminOrders');
+      if(!orders.length){box.innerHTML='<p style="color:var(--text3);font-size:.85rem;text-align:center;padding:.5rem">No orders yet.</p>';return}
+      box.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="color:var(--text3);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em">'
+        +'<th style="text-align:left;padding:.35rem .4rem">ID</th>'
+        +'<th style="text-align:left;padding:.35rem .4rem">User</th>'
+        +'<th style="text-align:left;padding:.35rem .4rem">Items</th>'
+        +'<th style="text-align:left;padding:.35rem .4rem">Email</th>'
+        +'<th style="text-align:right;padding:.35rem .4rem">Total</th>'
+        +'<th style="text-align:left;padding:.35rem .4rem">Status</th>'
+        +'</tr></thead><tbody>'
+        +orders.map(function(o){
+          var sc=o.status==='paid'?'var(--green)':o.status==='failed'?'var(--red)':'var(--accent)';
+          var cur=CUR[o.currency]?CUR[o.currency].sym:(o.currency||'');
+          return'<tr style="border-top:1px solid var(--border)">'
+            +'<td style="padding:.35rem .4rem;color:var(--text3);font-size:.65rem">'+o.orderId+'</td>'
+            +'<td style="padding:.35rem .4rem;font-weight:600">'+o.username+'</td>'
+            +'<td style="padding:.35rem .4rem;color:var(--text2)">'+(o.items||[]).join(', ')+'</td>'
+            +'<td style="padding:.35rem .4rem;color:var(--text3)">'+(o.email||'-')+'</td>'
+            +'<td style="padding:.35rem .4rem;text-align:right;color:var(--accent);font-weight:700">'+cur+(o.total||0)+'</td>'
+            +'<td style="padding:.35rem .4rem"><span style="color:'+sc+';font-weight:700;font-size:.7rem">'+o.status.toUpperCase()+'</span></td>'
+            +'</tr>';
+        }).join('')+'</tbody></table>';
+    })
+    .catch(function(){toast('Cannot reach backend','err')});
+
+  fetch(API+'/api/admin/products',{headers:{'x-admin-password':adminPass}})
+    .then(function(r){return r.json()})
+    .then(function(prods){
+      document.getElementById('adminProds').innerHTML=prods.map(function(p){
+        return'<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem">'
+          +'<span style="flex:1;font-weight:600;font-size:.82rem">'+(p.active?p.name:'<s style="opacity:.4">'+p.name+'</s>')+'</span>'
+          +'<span style="color:var(--accent);font-weight:700;font-size:.82rem">'+CUR[currency].sym+(p.price*CUR[currency].rate).toFixed(2)+'</span>'
+          +'<button onclick="editProduct('+p.id+')" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:.68rem;padding:.2rem .45rem;border-radius:4px;cursor:pointer">Edit</button>'
+          +'<button onclick="toggleProduct('+p.id+','+p.active+')" style="background:none;border:1px solid var(--'+(p.active?'red':'green')+'");color:var(--'+(p.active?'red':'green')+');font-size:.68rem;padding:.2rem .45rem;border-radius:4px;cursor:pointer">'+(p.active?'Hide':'Show')+'</button>'
+          +'</div>';
+      }).join('');
     });
+}
 
-    res.json({ url: session.url, orderId });
-  } catch (err) {
-    console.error('Checkout error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+function editProduct(id){
+  fetch(API+'/api/admin/products',{headers:{'x-admin-password':adminPass}})
+    .then(function(r){return r.json()})
+    .then(function(prods){
+      var p=prods.find(function(x){return x.id===id});if(!p)return;
+      var name=prompt('Name:',p.name);if(name===null)return;
+      var price=prompt('Price (EUR):',p.price);if(price===null)return;
+      var desc=prompt('Description:',p.desc);if(desc===null)return;
+      var badge=prompt('Badge (best/hot/new or empty):',p.badge||'');
+      fetch(API+'/api/admin/products/'+id,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','x-admin-password':adminPass},
+        body:JSON.stringify({name:name,price:parseFloat(price),desc:desc,badge:badge||null})
+      }).then(function(){toast('Product updated!','ok');loadProducts();loadAdminData()});
+    });
+}
 
-// ══════════════════════════════════════
-//  ROUTES: STRIPE WEBHOOK
-// ══════════════════════════════════════
-app.post('/webhook', async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error('Webhook signature failed:', err.message);
-    return res.status(400).send('Webhook Error: ' + err.message);
-  }
+function toggleProduct(id,active){
+  fetch(API+'/api/admin/products/'+id,{
+    method:active?'DELETE':'PUT',
+    headers:{'Content-Type':'application/json','x-admin-password':adminPass},
+    body:active?undefined:JSON.stringify({active:true})
+  }).then(function(){toast('Product updated!','ok');loadProducts();loadAdminData()});
+}
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    await Order.findOneAndUpdate(
-      { stripeSessionId: session.id },
-      { status: 'paid' }
-    );
-    console.log('✅ Payment confirmed:', session.metadata.orderId);
-  }
+function addProduct(){
+  var name=prompt('Product name:');if(!name)return;
+  var price=prompt('Price (EUR):');if(!price)return;
+  var cat=prompt('Category (rank/cosmetic/boost/bundle):','rank');if(!cat)return;
+  var rank=prompt('Rank label (e.g. Rank V):','Rank V');
+  var desc=prompt('Description:','');
+  fetch(API+'/api/admin/products',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-admin-password':adminPass},
+    body:JSON.stringify({name:name,price:parseFloat(price),cat:cat,rank:rank||'',desc:desc||'',perks:[],period:'one-time',icon:'star'})
+  }).then(function(){toast('Product added!','ok');loadProducts();loadAdminData()});
+}
 
-  res.json({ received: true });
-});
+function clearOrders(){
+  if(!confirm('Clear all orders?'))return;
+  fetch(API+'/api/admin/orders',{method:'DELETE',headers:{'x-admin-password':adminPass}})
+    .then(function(){toast('Orders cleared.','ok');loadAdminData()});
+}
 
-// ══════════════════════════════════════
-//  ROUTES: ORDERS (admin)
-// ══════════════════════════════════════
-app.get('/api/admin/orders', requireAdmin, async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 }).limit(100);
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+function sendTestEmail(){
+  var addr=document.getElementById('testEmail').value.trim();
+  if(!addr){toast('Enter an email','err');return}
+  emailjs.send(EJSSVC,EJSTPL,{
+    to_email:addr,username:'TestPlayer',product_name:'TEST - VIP',
+    items_list:'- VIP: EUR 4.99',price:'EUR 4.99',order_id:'TEST-001',currency:'EUR'
+  }).then(function(){toast('Test email sent!','ok')},function(e){toast('Failed: '+(e.text||'error'),'err')});
+}
 
-app.delete('/api/admin/orders', requireAdmin, async (req, res) => {
-  try {
-    await Order.deleteMany({});
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// HANDLE STRIPE REDIRECT BACK
+var params=new URLSearchParams(window.location.search);
+if(params.get('order')==='success'){
+  cart=[];saveCart();updateCount();
+  document.getElementById('modalTitle').textContent=T[lang].modalTitle;
+  document.getElementById('modalDesc').textContent=T[lang].modalDesc;
+  document.getElementById('successModal').classList.add('open');
+  window.history.replaceState({},'',window.location.pathname);
+} else if(params.get('order')==='cancelled'){
+  toast('Payment cancelled. Cart saved!','err');
+  window.history.replaceState({},'',window.location.pathname);
+}
 
-// ── Health check ──
-app.get('/', (req, res) => res.json({ status: 'Poclus SMP backend running' }));
-
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// INIT
+if(getCookie('poclus_ok'))document.getElementById('cookieBar').classList.add('hidden');
+syncUI();updateCount();renderProducts();updateLabels();loadProducts();
+</script>
+</body>
+</html>

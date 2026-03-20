@@ -333,7 +333,7 @@ footer a{color:var(--accent);text-decoration:none}
 emailjs.init('bZpe-yoHA1QHEjucc');
 
 // !! CHANGE THIS to your Railway backend URL after deploy !!
-var API_URL = 'https://YOUR-BACKEND.railway.app';
+var API_URL = 'https://poclus-backend.onrender.com';
 
 function setCookie(n,v,d){const e=new Date(Date.now()+d*864e5).toUTCString();document.cookie=n+'='+encodeURIComponent(JSON.stringify(v))+';expires='+e+';path=/;SameSite=Lax'}
 function getCookie(n){const m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));if(!m)return null;try{return JSON.parse(decodeURIComponent(m[1]))}catch(e){return null}}
